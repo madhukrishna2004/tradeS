@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#6366F1",
+                        secondary: "#1E293B",
+                        light: "#F1F5F9",
+                        dark: "#0F172A"
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+        body.dark {
+            background-color: #0F172A;
+            color: white;
+        }
+
+        body.light {
+            background-color: #F1F5F9;
+            color: black;
+        }
+    </style>
+</head>
+
+<body class="light">
+    <div class="flex justify-center min-h-screen items-center">
+        <div class="w-full max-w-3xl p-6 bg-white dark:bg-secondary shadow-md rounded-lg">
+            <!-- Dark Mode Toggle -->
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-primary dark:text-light">🚀 Trade Strategy Dashboard</h1>
+                <button id="toggleMode" class="p-2 rounded-md bg-primary text-white">
+                    🌙 Dark Mode
+                </button>
+            </div>
+
+            <!-- Client ID and Secret Key Inputs -->
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Client ID</label>
+                <input type="text" id="client_id" placeholder="Enter Client ID"
+                    class="mt-1 w-full p-2 border rounded-md focus:ring-primary focus:border-primary dark:bg-gray-800 dark:text-white">
+            </div>
+
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Secret Key</label>
+                <input type="text" id="secret_key" placeholder="Enter Secret Key"
+                    class="mt-1 w-full p-2 border rounded-md focus:ring-primary focus:border-primary dark:bg-gray-800 dark:text-white">
+            </div>
+
+            <!-- Get Authorization URL -->
+            <button id="getAuthURL"
+                class="mt-4 w-full bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 transition">
+                Get Authorization URL 
+            </button>
+
+            <!-- Access Code Input -->
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Access Code</label>
+                <input type="text" id="auth_code" placeholder="Paste Authorization Code"
+                    class="mt-1 w-full p-2 border rounded-md focus:ring-primary focus:border-primary dark:bg-gray-800 dark:text-white">
+            </div>
+
+            <!-- Exchange Code for Access Token -->
+            <button id="exchangeCode"
+                class="mt-2 w-full bg-green-500 text-white p-2 rounded-md hover:bg-green-600 transition">
+                Exchange Code for Token 🔄
+            </button>
+
+            <!-- Access Token Input -->
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Access Token</label>
+                <input type="text" id="access_token" placeholder="Access Token will appear here"
+                    class="mt-1 w-full p-2 border rounded-md focus:ring-primary focus:border-primary dark:bg-gray-800 dark:text-white">
+            </div>
+
+            <!-- Run Strategy Button -->
+            <button id="runStrategy"
+                class="mt-4 w-full bg-primary text-white p-2 rounded-md hover:bg-indigo-700 transition">
+                Run Strategy 
+            </button>
+
+            <!-- Loading Animation -->
+            <div id="loading" class="hidden text-center mt-4">
+                <span class="text-primary">Fetching Data...</span>
+            </div>
+
+            <!-- Strategy Results -->
+            <div id="results-container" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <p class="text-gray-600 dark:text-gray-300 text-center col-span-2">Results will appear here...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dark Mode Toggle
+        document.getElementById('toggleMode').addEventListener('click', () => {
+            const body = document.body;
+            body.classList.toggle('dark');
+            body.classList.toggle('light');
+            document.getElementById('toggleMode').innerText = body.classList.contains('dark') ? '☀️ Light Mode' : '🌙 Dark Mode';
+        });
+
+        // Get Authorization URL
+        document.getElementById('getAuthURL').addEventListener('click', async () => {
+            const client_id = document.getElementById('client_id').value;
+            const secret_key = document.getElementById('secret_key').value;
+
+            if (!client_id || !secret_key) {
+                alert("Please enter Client ID and Secret Key!");
+                return;
+            }
+
+            try {
+                const response = await fetch('/get_auth_url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ client_id, secret_key })
+                });
+                const data = await response.json();
+                window.open(data.auth_url, "_blank"); // Open auth URL in new tab
+            } catch (error) {
+                alert("Error fetching authorization URL.");
+            }
+        });
+
+        // Exchange Code for Access Token
+        document.getElementById('exchangeCode').addEventListener('click', async () => {
+            const auth_code = document.getElementById('auth_code').value;
+
+            if (!auth_code) {
+                alert("Please enter the Authorization Code!");
+                return;
+            }
+
+            try {
+                const response = await fetch('/exchange_code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ auth_code })
+                });
+
+                const data = await response.json();
+                document.getElementById('access_token').value = data.access_token;
+            } catch (error) {
+                alert("Error exchanging code for token.");
+            }
+        });
+
+        // Run Strategy and Display Results
+        document.getElementById('runStrategy').addEventListener('click', async () => {
+            const access_token = document.getElementById('access_token').value;
+
+            if (!access_token) {
+                alert("Please obtain an Access Token first!");
+                return;
+            }
+
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('results-container').innerHTML = "";
+
+            try {
+                const response = await fetch('/run_strategy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ access_token })
+                });
+
+                const data = await response.json();
+                document.getElementById('loading').classList.add('hidden');
+
+                Object.keys(data).forEach(symbol => {
+                    let stock = data[symbol];
+                    let signalClass = stock.Signal.includes("Buy") ? "text-green-500" : "text-red-500";
+
+                    let card = `
+                        <div class="p-4 bg-gray-100 dark:bg-gray-800 shadow-md rounded-md">
+                            <h3 class="text-xl font-bold text-primary dark:text-light">${symbol}</h3>
+                            <p><span class="font-semibold">LTP:</span> ₹${stock.LTP}</p>
+                            <p><span class="font-semibold">20D High:</span> ₹${stock["20D High"]}</p>
+                            <p><span class="font-semibold">Yesterday Close:</span> ₹${stock["Yesterday Close"]}</p>
+                            <p><span class="font-semibold">Signal:</span> <span class="${signalClass}">${stock.Signal}</span></p>
+                            <p><span class="font-semibold">Target Price:</span> ₹${stock["Target Price"]}</p>
+                            <p><span class="font-semibold">Stop Loss:</span> ₹${stock["Stop Loss"]}</p>
+                        </div>
+                    `;
+                    document.getElementById('results-container').innerHTML += card;
+                });
+            } catch (error) {
+                document.getElementById('loading').classList.add('hidden');
+                //alert("Error running strategy!");
+            }
+        });
+    </script>
+</body>
+
+</html>
